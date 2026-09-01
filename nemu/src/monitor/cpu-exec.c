@@ -1,4 +1,5 @@
 #include "monitor/monitor.h"
+#include "monitor/watchpoint.h"
 #include "cpu/helper.h"
 #include <setjmp.h>
 
@@ -49,8 +50,8 @@ void cpu_exec(volatile uint32_t n) {
 	setjmp(jbuf);
 
 	for(; n > 0; n --) {
-#ifdef DEBUG
 		swaddr_t eip_temp = cpu.eip;
+#ifdef DEBUG
 		if((n & 0xffff) == 0) {
 			/* Output some dots while executing the program. */
 			fputc('.', stderr);
@@ -72,8 +73,10 @@ void cpu_exec(volatile uint32_t n) {
 		}
 #endif
 
-		/* TODO: check watchpoints here. */
-
+		/* WB的作业，可借鉴，请勿直接复制粘贴 */
+		if(check_wp(eip_temp)) {
+			nemu_state = STOP;
+		}
 
 #ifdef HAS_DEVICE
 		extern void device_update();
