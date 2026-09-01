@@ -46,24 +46,29 @@ uint32_t loader() {
 			 * to the memory region [VirtAddr, VirtAddr + FileSiz)
 			 */
 			nemu_assert(ph->p_filesz <= ph->p_memsz);
+			uint32_t virtual_addr = ph->p_vaddr;
+			uint8_t *load_addr = (uint8_t *)virtual_addr;
+#ifdef IA32_PAGE
+			load_addr = (uint8_t *)mm_malloc(virtual_addr, ph->p_memsz);
+#endif
 #ifdef HAS_DEVICE
-			ide_read((void *)ph->p_vaddr, ELF_OFFSET_IN_DISK + ph->p_offset,
+			ide_read(load_addr, ELF_OFFSET_IN_DISK + ph->p_offset,
 					ph->p_filesz);
 #else
-			ramdisk_read((void *)ph->p_vaddr, ELF_OFFSET_IN_DISK + ph->p_offset,
+			ramdisk_read(load_addr, ELF_OFFSET_IN_DISK + ph->p_offset,
 					ph->p_filesz);
 #endif
 			/* TODO: zero the memory region 
 			 * [VirtAddr + FileSiz, VirtAddr + MemSiz)
 			 */
 			/* WB的作业，可借鉴，请勿直接复制粘贴 */
-			memset((void *)(ph->p_vaddr + ph->p_filesz), 0,
+			memset(load_addr + ph->p_filesz, 0,
 					ph->p_memsz - ph->p_filesz);
 
 #ifdef IA32_PAGE
 			/* Record the program break for future use. */
 			extern uint32_t cur_brk, max_brk;
-			uint32_t new_brk = ph->p_vaddr + ph->p_memsz - 1;
+			uint32_t new_brk = virtual_addr + ph->p_memsz - 1;
 			if(cur_brk < new_brk) { max_brk = cur_brk = new_brk; }
 #endif
 		}
@@ -74,9 +79,7 @@ uint32_t loader() {
 #ifdef IA32_PAGE
 	mm_malloc(KOFFSET - STACK_SIZE, STACK_SIZE);
 
-#ifdef HAS_DEVICE
 	create_video_mapping();
-#endif
 
 	write_cr3(get_ucr3());
 #endif

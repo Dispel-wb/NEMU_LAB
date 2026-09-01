@@ -3,8 +3,10 @@
 #define instr movs
 
 make_helper(concat(movs_, SUFFIX)) {
-
-    swaddr_write(reg_l(R_EDI),DATA_BYTE,MEM_R(reg_l(R_ESI)));
+	current_sreg = R_DS;
+	uint32_t value = MEM_R(reg_l(R_ESI));
+	current_sreg = R_ES;
+	swaddr_write(reg_l(R_EDI), DATA_BYTE, value);
 	if (cpu.eflags.DF == 0) {
         reg_l(R_EDI) += DATA_BYTE;
         reg_l(R_ESI) += DATA_BYTE;

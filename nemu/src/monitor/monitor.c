@@ -74,6 +74,14 @@ static void load_entry() {
 	fclose(fp);
 }
 
+static void init_protected_mode_state(void) {
+	cpu.cr0.val = 0;
+	cpu.cr3.val = 0;
+	memset(cpu.sreg, 0, sizeof(cpu.sreg));
+	cpu.cs.limit = 0xffffffffu;
+	current_sreg = R_DS;
+}
+
 void restart() {
 	/* Perform some initialization to restart a program */
 	cpu.eflags.val = 0x2;
@@ -90,4 +98,9 @@ void restart() {
 
 	/* Initialize DRAM. */
 	init_ddr3();
+
+	/* PA3 memory hierarchy and address-translation state. */
+	init_cache();
+	init_tlb();
+	init_protected_mode_state();
 }

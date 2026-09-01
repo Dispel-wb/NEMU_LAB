@@ -45,4 +45,3 @@ void init_mm() {
 
 	ucr3.val = (uint32_t)va_to_pa((uint32_t)updir) & ~0xfff;
 }
-

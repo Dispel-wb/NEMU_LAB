@@ -4,9 +4,11 @@
 
 
 static void do_execute() {
-    OPERAND_W(op_src,MEM_R(reg_l(R_ESP)));
-    // MEM_W(reg_l(R_ESP),0);
-    reg_l(R_ESP) += DATA_BYTE;
+	current_sreg = R_SS;
+	DATA_TYPE value = MEM_R(reg_l(R_ESP));
+	reg_l(R_ESP) += DATA_BYTE;
+	if(op_src->type == OP_TYPE_MEM) current_sreg = op_src->sreg;
+	OPERAND_W(op_src, value);
 
     print_asm_template1();
 }

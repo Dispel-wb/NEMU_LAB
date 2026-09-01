@@ -3,6 +3,7 @@
 #include <time.h>
 
 CPU_state cpu;
+uint8_t current_sreg = R_DS;
 
 const char *regsl[] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
 const char *regsw[] = {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
@@ -42,3 +43,26 @@ void reg_test() {
 	assert(eip_sample == cpu.eip);
 }
 
+void sreg_load(uint8_t sreg_num){
+	Assert(sreg_num < 6, "invalid segment register %u", sreg_num);
+	Assert(cpu.cr0.protect_enable, "segment load outside protected mode");
+
+	uint16_t selector = cpu.sreg[sreg_num].selector;
+	Assert((selector & 0x4) == 0, "LDT is not implemented");
+	uint32_t offset = (selector >> 3) * 8;
+	Assert(offset + 7 <= cpu.gdtr.limit, "segment selector exceeds GDTR limit");
+
+	SegmentDescriptor desc;
+	desc.raw.low = lnaddr_read(cpu.gdtr.base + offset, 4);
+	desc.raw.high = lnaddr_read(cpu.gdtr.base + offset + 4, 4);
+	Assert(desc.present, "segment is not present");
+
+	uint32_t base = desc.base_15_0 |
+		(desc.base_23_16 << 16) | (desc.base_31_24 << 24);
+	uint32_t limit = desc.limit_15_0 | (desc.limit_19_16 << 16);
+	if(desc.granularity) limit = (limit << 12) | 0xfff;
+
+	cpu.sreg[sreg_num].base = base;
+	cpu.sreg[sreg_num].limit = limit;
+	cpu.sreg[sreg_num].attribute = (uint16_t)(desc.raw.high >> 8);
+}

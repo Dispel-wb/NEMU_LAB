@@ -31,6 +31,7 @@ char* rl_gets() {
 static int cmd_c(char *args) {
 	(void)args;
 	cpu_exec(-1);
+	printf("cache cycles: %llu\n", (unsigned long long)cache_cycles);
 	return 0;
 }
 
@@ -107,6 +108,7 @@ static int cmd_x(char *args) {
 	}
 	address = expr(expression, &success);
 	if(!success) return 0;
+	current_sreg = R_DS;
 	for(i = 0; i < count; i ++) {
 		uint32_t current = address + i * 4;
 		printf("0x%08x: 0x%08x\n", current, swaddr_read(current, 4));
@@ -175,6 +177,7 @@ static int cmd_bt(char *args) {
 	swaddr_t pc = cpu.eip;
 	int depth = 0;
 	(void)args;
+	current_sreg = R_SS;
 
 	while(pc != 0 && depth < 64) {
 		const char *name = "??";
@@ -198,6 +201,23 @@ static int cmd_bt(char *args) {
 	return 0;
 }
 
+static int cmd_page(char *args) {
+	bool success;
+	int flag;
+	uint32_t linear, physical;
+	if(args == NULL) {
+		printf("Usage: page EXPR\n");
+		return 0;
+	}
+	linear = expr(args, &success);
+	if(!success) return 0;
+	physical = page_translate_additional(linear, &flag);
+	if(flag == 0) printf("linear 0x%08x -> physical 0x%08x\n", linear, physical);
+	else if(flag == 1) printf("linear 0x%08x: page-directory entry is not present\n", linear);
+	else printf("linear 0x%08x: page-table entry is not present\n", linear);
+	return 0;
+}
+
 static struct {
 	char *name;
 	char *description;
@@ -213,6 +233,7 @@ static struct {
 	{ "w", "Create a watchpoint", cmd_w },
 	{ "d", "Delete a watchpoint", cmd_d },
 	{ "bt", "Display the stack-frame chain", cmd_bt },
+	{ "page", "Translate a linear address: page EXPR", cmd_page },
 };
 
 #define NR_CMD (sizeof(cmd_table) / sizeof(cmd_table[0]))
