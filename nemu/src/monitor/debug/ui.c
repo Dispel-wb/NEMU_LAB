@@ -8,6 +8,7 @@
 #include <readline/history.h>
 
 void cpu_exec(uint32_t);
+bool look_up_function(swaddr_t, const char **, swaddr_t *);
 
 /* We use the `readline' library to provide more flexibility to read from stdin. */
 char* rl_gets() {
@@ -169,6 +170,34 @@ static int cmd_d(char *args) {
 	return 0;
 }
 
+static int cmd_bt(char *args) {
+	swaddr_t frame = cpu.ebp;
+	swaddr_t pc = cpu.eip;
+	int depth = 0;
+	(void)args;
+
+	while(pc != 0 && depth < 64) {
+		const char *name = "??";
+		swaddr_t start = 0;
+		uint32_t argv[4] = {0};
+		int i;
+		look_up_function(pc, &name, &start);
+		printf("#%d  0x%08x in %s+0x%x (", depth, pc, name, pc - start);
+		if(frame != 0) {
+			for(i = 0; i < 4; i ++) {
+				argv[i] = swaddr_read(frame + 8 + i * 4, 4);
+				printf("%s0x%x", i == 0 ? "" : ", ", argv[i]);
+			}
+		}
+		printf(")\n");
+		if(frame == 0) break;
+		pc = swaddr_read(frame + 4, 4);
+		frame = swaddr_read(frame, 4);
+		depth ++;
+	}
+	return 0;
+}
+
 static struct {
 	char *name;
 	char *description;
@@ -183,6 +212,7 @@ static struct {
 	{ "p", "Evaluate an expression", cmd_p },
 	{ "w", "Create a watchpoint", cmd_w },
 	{ "d", "Delete a watchpoint", cmd_d },
+	{ "bt", "Display the stack-frame chain", cmd_bt },
 };
 
 #define NR_CMD (sizeof(cmd_table) / sizeof(cmd_table[0]))

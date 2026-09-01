@@ -1,8 +1,12 @@
 #include "FLOAT.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include <limits.h>
 
 FLOAT F_mul_F(FLOAT a, FLOAT b) {
-	nemu_assert(0);
-	return 0;
+	int64_t product = (int64_t)a * b;
+	return product >> 16;
 }
 
 FLOAT F_div_F(FLOAT a, FLOAT b) {
@@ -24,8 +28,24 @@ FLOAT F_div_F(FLOAT a, FLOAT b) {
 	 * out another way to perform the division.
 	 */
 
-	nemu_assert(0);
-	return 0;
+	nemu_assert(b != 0);
+	bool negative = (a < 0) != (b < 0);
+	uint32_t dividend = a < 0 ? -(int64_t)a : a;
+	uint32_t divisor = b < 0 ? -(int64_t)b : b;
+	uint32_t quotient = dividend / divisor;
+	uint32_t remainder = dividend % divisor;
+	int i;
+
+	/* WB的作业，可借鉴，请勿直接复制粘贴 */
+	quotient <<= 16;
+	for(i = 0; i < 16; i ++) {
+		remainder <<= 1;
+		if(remainder >= divisor) {
+			remainder -= divisor;
+			quotient |= 1u << (15 - i);
+		}
+	}
+	return negative ? -(FLOAT)quotient : (FLOAT)quotient;
 }
 
 FLOAT f2F(float a) {
@@ -39,13 +59,36 @@ FLOAT f2F(float a) {
 	 * performing arithmetic operations on it directly?
 	 */
 
-	nemu_assert(0);
-	return 0;
+	uint32_t bits;
+	uint32_t fraction;
+	int exponent;
+	bool negative;
+
+	memcpy(&bits, &a, sizeof(bits));
+	negative = bits >> 31;
+	exponent = (bits >> 23) & 0xff;
+	fraction = bits & 0x7fffff;
+	if(exponent == 0) return 0;
+	if(exponent == 0xff) return negative ? INT32_MIN : INT32_MAX;
+
+	fraction |= 1u << 23;
+	exponent -= 134;
+	if(exponent >= 0) {
+		if(exponent > 7 || fraction > ((uint32_t)INT32_MAX >> exponent)) {
+			return negative ? INT32_MIN : INT32_MAX;
+		}
+		fraction <<= exponent;
+	}
+	else {
+		if(exponent <= -31) return 0;
+		fraction >>= -exponent;
+	}
+	return negative ? -(FLOAT)fraction : (FLOAT)fraction;
 }
 
 FLOAT Fabs(FLOAT a) {
-	nemu_assert(0);
-	return 0;
+	if(a == INT32_MIN) return INT32_MAX;
+	return a < 0 ? -a : a;
 }
 
 /* Functions below are already implemented */
@@ -73,4 +116,3 @@ FLOAT pow(FLOAT x, FLOAT y) {
 
 	return t;
 }
-

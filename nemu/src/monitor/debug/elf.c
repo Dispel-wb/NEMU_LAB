@@ -81,3 +81,28 @@ void load_elf_tables(int argc, char *argv[]) {
 	fclose(fp);
 }
 
+bool look_up_symbol(const char *name, uint32_t *address) {
+	int i;
+	for(i = 0; i < nr_symtab_entry; i ++) {
+		if(ELF32_ST_TYPE(symtab[i].st_info) == STT_OBJECT &&
+				strcmp(strtab + symtab[i].st_name, name) == 0) {
+			*address = symtab[i].st_value;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool look_up_function(swaddr_t address, const char **name, swaddr_t *start) {
+	int i;
+	for(i = 0; i < nr_symtab_entry; i ++) {
+		if(ELF32_ST_TYPE(symtab[i].st_info) == STT_FUNC &&
+				address >= symtab[i].st_value &&
+				address < symtab[i].st_value + symtab[i].st_size) {
+			*name = strtab + symtab[i].st_name;
+			*start = symtab[i].st_value;
+			return true;
+		}
+	}
+	return false;
+}

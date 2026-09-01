@@ -10,6 +10,7 @@ enum {
 	TK_DECIMAL,
 	TK_HEX,
 	TK_REGISTER,
+	TK_IDENTIFIER,
 	TK_EQ,
 	TK_NEQ,
 	TK_AND,
@@ -26,6 +27,7 @@ static struct rule {
 	{"0[xX][0-9a-fA-F]+", TK_HEX},
 	{"[0-9]+", TK_DECIMAL},
 	{"\\$[a-zA-Z][a-zA-Z0-9]*", TK_REGISTER},
+	{"[a-zA-Z_][a-zA-Z0-9_]*", TK_IDENTIFIER},
 	{"==", TK_EQ},
 	{"!=", TK_NEQ},
 	{"&&", TK_AND},
@@ -69,7 +71,7 @@ void init_regex(void) {
 
 static bool token_ends_value(int type) {
 	return type == TK_DECIMAL || type == TK_HEX || type == TK_REGISTER ||
-		type == ')';
+		type == TK_IDENTIFIER || type == ')';
 }
 
 /* WB的作业，可借鉴，请勿直接复制粘贴 */
@@ -231,6 +233,13 @@ static uint32_t eval(int left, int right, bool *success) {
 			case TK_REGISTER:
 				if(read_register(tokens[left].text + 1, &lhs)) return lhs;
 				printf("Unknown register: %s\n", tokens[left].text);
+				break;
+			case TK_IDENTIFIER:
+				/* WB的作业，可借鉴，请勿直接复制粘贴 */
+				if(look_up_symbol(tokens[left].text, &lhs)) {
+					return swaddr_read(lhs, 4);
+				}
+				printf("Unknown variable: %s\n", tokens[left].text);
 				break;
 			default:
 				printf("Expected a value near '%s'.\n", tokens[left].text);

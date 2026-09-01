@@ -3,11 +3,21 @@
 #define instr dec
 
 static void do_execute () {
-	DATA_TYPE result = op_src->val - 1;
-	OPERAND_W(op_src, result);
+	DATA_TYPE ret = op_src->val - 1;
+	OPERAND_W(op_src, ret);
 
-        update_eflags_pf_zf_sf((DATA_TYPE_S)result);
-	cpu.eflags.OF = (result == 0x7fffffff);
+	/* TODO: Update EFLAGS. */
+	cpu.eflags.ZF = !ret;
+    cpu.eflags.SF = ret >> ((DATA_BYTE << 3) - 1);
+    cpu.eflags.CF = op_src -> val < 1;
+    int tmp1 = (op_src -> val) >> ((DATA_BYTE << 3) - 1);
+    int tmp2 = 0;
+    cpu.eflags.OF = (tmp1 != tmp2 && tmp2 == cpu.eflags.SF);
+    ret ^= ret >> 4;
+    ret ^= ret >> 2;
+    ret ^= ret >> 1;
+    ret &= 1;
+    cpu.eflags.PF = !ret;
 
 	print_asm_template1();
 }

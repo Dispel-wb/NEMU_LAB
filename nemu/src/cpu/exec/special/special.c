@@ -9,7 +9,7 @@ make_helper(inv) {
 	temp[1] = instr_fetch(eip + 4, 4);
 
 	uint8_t *p = (void *)temp;
-	printf("invalid opcode(eip = 0x%08x): %02x %02x %02x %02x %02x %02x %02x %02x ...\n\n", 
+	printf("invalid opcode(eip = 0x%08x): %02x %02x %02x %02x %02x %02x %02x %02x ...\n\n",
 			eip, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 
 	extern char logo [];
@@ -32,11 +32,10 @@ make_helper(nemu_trap) {
 		   	break;
 
 		default:
-			printf("\33[1;31mnemu: HIT %s TRAP\33[0m at eip = 0x%08x\n\n",
+			printf("\33[1;34mnemu: HIT %s TRAP\33[0m at eip = 0x%08x\n\n",
 					(cpu.eax == 0 ? "GOOD" : "BAD"), cpu.eip);
 			nemu_state = END;
 	}
 
 	return 1;
 }
-

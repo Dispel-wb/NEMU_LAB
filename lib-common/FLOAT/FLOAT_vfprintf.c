@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "FLOAT.h"
 
 extern char _vfprintf_internal;
 extern char _fpmaxtostr;
+extern char _ppfs_setargs;
 extern int __stdio_fwrite(char *buf, int len, FILE *stream);
 
 __attribute__((used)) static int format_FLOAT(FILE *stream, FLOAT f) {
@@ -16,7 +18,12 @@ __attribute__((used)) static int format_FLOAT(FILE *stream, FLOAT f) {
 	 */
 
 	char buf[80];
-	int len = sprintf(buf, "0x%08x", f);
+	bool negative = f < 0;
+	uint32_t magnitude = negative ? -(int64_t)f : f;
+	uint32_t integer = magnitude >> 16;
+	uint32_t fraction = ((uint64_t)(magnitude & 0xffff) * 1000000) >> 16;
+	int len = sprintf(buf, negative ? "-%u.%06u" : "%u.%06u",
+			integer, fraction);
 	return __stdio_fwrite(buf, len, stream);
 }
 
@@ -26,7 +33,23 @@ static void modify_vfprintf() {
 	 * is the code section in _vfprintf_internal() relative to the
 	 * hijack.
 	 */
+	uintptr_t base = (uintptr_t)&_vfprintf_internal;
+	uint8_t *code;
+	int32_t *displacement;
 
+	/* WB的作业，可借鉴，请勿直接复制粘贴 */
+	code = (uint8_t *)(base + 0x306 - 0x0a);
+	code[0] = 0xff;
+	code[1] = 0x32;
+	code[2] = 0x90;
+	*(uint8_t *)(base + 0x306 - 0x0b) = 0x08;
+	*(uint8_t *)(base + 0x306 - 0x22) = 0x90;
+	*(uint8_t *)(base + 0x306 - 0x21) = 0x90;
+	*(uint8_t *)(base + 0x306 - 0x1e) = 0x90;
+	*(uint8_t *)(base + 0x306 - 0x1d) = 0x90;
+
+	displacement = (int32_t *)(base + 0x307);
+	*displacement += (uintptr_t)format_FLOAT - (uintptr_t)&_fpmaxtostr;
 #if 0
 	else if (ppfs->conv_num <= CONV_A) {  /* floating point */
 		ssize_t nf;
@@ -72,7 +95,11 @@ static void modify_ppfs_setargs() {
 	 * Below is the code section in _vfprintf_internal() relative to
 	 * the modification.
 	 */
-
+	uintptr_t base = (uintptr_t)&_ppfs_setargs;
+	uint8_t *code = (uint8_t *)(base + 0x71);
+	code[0] = 0xeb;
+	code[1] = 0x30;
+	code[2] = 0x90;
 #if 0
 	enum {                          /* C type: */
 		PA_INT,                       /* int */
