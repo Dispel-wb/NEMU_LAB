@@ -236,10 +236,7 @@ static uint32_t eval(int left, int right, bool *success) {
 				break;
 			case TK_IDENTIFIER:
 				/* WB的作业，可借鉴，请勿直接复制粘贴 */
-				if(look_up_symbol(tokens[left].text, &lhs)) {
-					current_sreg = R_DS;
-					return swaddr_read(lhs, 4);
-				}
+				if(look_up_symbol(tokens[left].text, &lhs)) return lhs;
 				printf("Unknown variable: %s\n", tokens[left].text);
 				break;
 			default:
