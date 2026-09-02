@@ -1,6 +1,7 @@
 #include "monitor/monitor.h"
 #include "monitor/watchpoint.h"
 #include "cpu/helper.h"
+#include "device/i8259.h"
 #include <setjmp.h>
 
 /* The assembly code of instructions executed is only output to the screen
@@ -19,6 +20,36 @@ char asm_buf[128];
 
 /* Used with exception handling. */
 jmp_buf jbuf;
+
+static void intr_push(uint32_t value) {
+	current_sreg = R_SS;
+	reg_l(R_ESP) -= 4;
+	swaddr_write(reg_l(R_ESP), 4, value);
+}
+
+void raise_intr(uint8_t no) {
+	/* WB的作业，可借鉴，请勿直接复制粘贴 */
+	Assert((uint32_t)no * 8 + 7 <= cpu.idtr.limit,
+		"interrupt vector %u exceeds IDTR limit", no);
+
+	GateDescriptor gate;
+	gate.raw.low = lnaddr_read(cpu.idtr.base + (uint32_t)no * 8, 4);
+	gate.raw.high = lnaddr_read(cpu.idtr.base + (uint32_t)no * 8 + 4, 4);
+	Assert(gate.type_attr & 0x80, "interrupt vector %u is not present", no);
+
+	intr_push(cpu.eflags.val);
+	intr_push(cpu.cs.selector);
+	intr_push(cpu.eip);
+
+	uint8_t gate_type = gate.type_attr & 0xf;
+	if(gate_type == 0xe) cpu.eflags.IF = 0; /* interrupt gate */
+	else Assert(gate_type == 0xf, "unsupported gate type 0x%x", gate_type);
+
+	cpu.cs.selector = gate.selector;
+	sreg_load(R_CS);
+	cpu.eip = gate.offset_15_0 | ((uint32_t)gate.offset_31_16 << 16);
+	longjmp(jbuf, 1);
+}
 
 void print_bin_instr(swaddr_t eip, int len) {
 	int i;
@@ -84,6 +115,14 @@ void cpu_exec(volatile uint32_t n) {
 #endif
 
 		if(nemu_state != RUNNING) { return; }
+
+#ifdef HAS_DEVICE
+		if(cpu.INTR && cpu.eflags.IF) {
+			uint8_t no = i8259_query_intr();
+			i8259_ack_intr();
+			raise_intr(no);
+		}
+#endif
 	}
 
 	if(nemu_state == RUNNING) { nemu_state = STOP; }

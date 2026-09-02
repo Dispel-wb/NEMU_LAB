@@ -23,3 +23,14 @@ make_helper(lea) {
 	print_asm("leal %s,%%%s", op_src->str, regsl[m.reg]);
 	return 1 + len;
 }
+void device_update();
+make_helper(hlt){
+	if (!cpu.INTR) cpu.eip --;
+	print_asm("hlt");
+	return 1;
+}
+make_helper(sti){
+	cpu.eflags.IF = 1;
+	print_asm("sti");
+	return 1;
+}

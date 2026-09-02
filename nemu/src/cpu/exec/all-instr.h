@@ -11,6 +11,10 @@
 #include "data-mov/movzw.h"
 #include "data-mov/movsx.h"
 #include "data-mov/lgdt.h"
+#include "data-mov/lidt.h"
+#include "data-mov/pusha.h"
+#include "data-mov/popa.h"
+#include "data-mov/cmovcc.h"
 
 #include "call-jump-ret/call.h"
 #include "call-jump-ret/je.h"
@@ -51,6 +55,8 @@
 #include "logic/shrd.h"
 #include "logic/test.h"
 #include "logic/setne.h"
+#include "logic/sete.h"
+#include "logic/setcc.h"
 #include "logic/std.h"
 #include "logic/cld.h"
 
@@ -63,3 +69,9 @@
 #include "misc/misc.h"
 
 #include "special/special.h"
+
+#include "intr/intr.h"
+
+#include "io/in.h"
+#include "io/out.h"
+#include "io/bt.h"

@@ -18,7 +18,9 @@ void ide_read(uint8_t *buf, uint32_t offset, uint32_t len) {
 	uint32_t i;
 	for (i = 0; i < len; i ++) {
 		buf[i] = read_byte(offset + i);
+		//Log("%x",buf[i]);
 	}
+	// set_bp();
 }
 
 void ide_write(uint8_t *buf, uint32_t offset, uint32_t len) {
@@ -65,4 +67,3 @@ init_ide(void) {
 	add_irq_handle(0, ide_writeback);
 	add_irq_handle(14, ide_intr);
 }
-

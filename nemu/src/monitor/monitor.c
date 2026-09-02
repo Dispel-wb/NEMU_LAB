@@ -10,6 +10,8 @@ void load_elf_tables(int, char *[]);
 void init_regex();
 void init_wp_pool();
 void init_ddr3();
+void init_device();
+void init_sdl();
 
 FILE *log_fp = NULL;
 
@@ -37,6 +39,11 @@ void init_monitor(int argc, char *argv[]) {
 
 	/* Initialize the watchpoint pool. */
 	init_wp_pool();
+
+#ifdef HAS_DEVICE
+	init_device();
+	init_sdl();
+#endif
 
 	/* Display welcome message. */
 	welcome();
@@ -80,6 +87,7 @@ static void init_protected_mode_state(void) {
 	memset(cpu.sreg, 0, sizeof(cpu.sreg));
 	cpu.cs.limit = 0xffffffffu;
 	current_sreg = R_DS;
+	cpu.INTR = false;
 }
 
 void restart() {

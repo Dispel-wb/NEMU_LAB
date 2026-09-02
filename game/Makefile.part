@@ -1,5 +1,5 @@
-GAME := typing
-#GAME := nemu-pal
+#GAME := typing
+GAME := nemu-pal
 
 game_CFLAGS_EXTRA := -m32 -O2 -fno-builtin -fno-omit-frame-pointer -fno-stack-protector \
 						-Wno-format -I$(LIB_COMMON_DIR) -I$(LIBC_INC_DIR)\
@@ -17,10 +17,17 @@ game_ALL_OBJS := $(LIBC_LIB_DIR)/crt1.o \
 				 $(LIBC) \
 				 $(LIBC_LIB_DIR)/crtn.o
 
+PAL_DATA_DIR := $(game_SRC_DIR)/nemu-pal/data
+PAL_DATA := $(addprefix $(PAL_DATA_DIR)/,\
+	1.rpg 2.rpg 3.rpg 4.rpg 5.rpg abc.mkf ball.mkf data.mkf desc.dat \
+	fbp.mkf fire.mkf f.mkf gop.mkf map.mkf mgo.mkf m.msg mus.mkf pat.mkf \
+	rgm.mkf rng.mkf sss.mkf voc.mkf wor16.asc wor16.fon word.dat)
+
 $(game_BIN): $(game_ALL_OBJS)
 	$(call make_command, $(LD), $(game_LDFLAGS), ld $@, $^)
 	$(call git_commit, "compile game")
 ifeq ($(GAME),nemu-pal)
 	dd if=/dev/null of=$@ seek=2048
-	cat `find $(game_SRC_DIR)/nemu-pal/data -type f | sort` >> $@
+	# WB的作业，可借鉴，请勿直接复制粘贴
+	cat $(PAL_DATA) >> $@
 endif

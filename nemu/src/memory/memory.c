@@ -3,6 +3,9 @@
 
 uint32_t dram_read(hwaddr_t addr, size_t len);
 void dram_write(hwaddr_t addr, size_t len, uint32_t data);
+int is_mmio(hwaddr_t addr);
+uint32_t mmio_read(hwaddr_t addr, size_t len, int map_no);
+void mmio_write(hwaddr_t addr, size_t len, uint32_t data, int map_no);
 
 lnaddr_t seg_translate(swaddr_t addr, size_t len, uint8_t sreg_id) {
 	if(!cpu.cr0.protect_enable) return addr;
@@ -70,6 +73,8 @@ hwaddr_t page_translate_additional(lnaddr_t addr, int *flag) {
 
 uint32_t hwaddr_read(hwaddr_t addr, size_t len) {
 	Assert(len >= 1 && len <= 4, "invalid physical read length %u", (unsigned)len);
+	int map_no = is_mmio(addr);
+	if(map_no >= 0) return mmio_read(addr, len, map_no);
 	int first_line = read_cache1(addr);
 	uint32_t offset = addr & (CACHE_L1_BLOCK_SIZE - 1);
 	uint8_t bytes[4] = {0};
@@ -88,6 +93,11 @@ uint32_t hwaddr_read(hwaddr_t addr, size_t len) {
 
 void hwaddr_write(hwaddr_t addr, size_t len, uint32_t data) {
 	Assert(len >= 1 && len <= 4, "invalid physical write length %u", (unsigned)len);
+	int map_no = is_mmio(addr);
+	if(map_no >= 0) {
+		mmio_write(addr, len, data, map_no);
+		return;
+	}
 	write_cache1(addr, len, data);
 }
 

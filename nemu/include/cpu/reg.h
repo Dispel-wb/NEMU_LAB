@@ -84,7 +84,23 @@ typedef struct {
 		struct { SegmentReg es, cs, ss, ds, fs, gs; };
 	};
 	CR3 cr3;
+	struct {
+		uint32_t base;
+		uint16_t limit;
+	} idtr;
+	bool INTR;
 } CPU_state;
+
+typedef union {
+	struct {
+		uint16_t offset_15_0;
+		uint16_t selector;
+		uint8_t reserved;
+		uint8_t type_attr;
+		uint16_t offset_31_16;
+	};
+	struct { uint32_t low, high; } raw;
+} GateDescriptor;
 
 extern CPU_state cpu;
 extern uint8_t current_sreg;

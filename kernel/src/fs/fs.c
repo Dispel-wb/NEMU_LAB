@@ -1,11 +1,17 @@
 #include "common.h"
 #include <sys/ioctl.h>
+#include <string.h>
 
 typedef struct {
 	char *name;
 	uint32_t size;
 	uint32_t disk_offset;
 } file_info;
+
+typedef struct {
+	bool opened;
+	uint32_t offset;
+} Fstate;
 
 enum {SEEK_SET, SEEK_CUR, SEEK_END};
 
@@ -28,6 +34,8 @@ static const file_info file_table[] __attribute__((used)) = {
 
 #define NR_FILES (sizeof(file_table) / sizeof(file_table[0]))
 
+static Fstate file_state[NR_FILES + 3];
+
 int fs_ioctl(int fd, uint32_t request, void *p) {
 	assert(request == TCGETS);
 	return (fd >= 0 && fd <= 2 ? 0 : -1);
@@ -35,6 +43,80 @@ int fs_ioctl(int fd, uint32_t request, void *p) {
 
 void ide_read(uint8_t *, uint32_t, uint32_t);
 void ide_write(uint8_t *, uint32_t, uint32_t);
+void serial_printc(char);
 
-/* TODO: implement a simplified file system here. */
+int fs_open(const char *pathname, int flags) {
+	uint32_t i;
+	(void)flags;
+	while(pathname[0] == '.' && pathname[1] == '/') pathname += 2;
 
+	/* WB的作业，可借鉴，请勿直接复制粘贴 */
+	for(i = 0; i < NR_FILES; i ++) {
+		if(strcmp(pathname, file_table[i].name) == 0) {
+			int fd = i + 3;
+			assert(!file_state[fd].opened);
+			file_state[fd].opened = true;
+			file_state[fd].offset = 0;
+			return fd;
+		}
+	}
+	panic("file not found: %s", pathname);
+	return -1;
+}
+
+uint32_t fs_read(int fd, void *buf, uint32_t len) {
+	if(fd >= 0 && fd <= 2) return 0;
+	assert(fd >= 3 && fd < (int)(NR_FILES + 3));
+	assert(file_state[fd].opened);
+
+	const file_info *file = &file_table[fd - 3];
+	uint32_t remain = file->size - file_state[fd].offset;
+	if(len > remain) len = remain;
+	ide_read(buf, file->disk_offset + file_state[fd].offset, len);
+	file_state[fd].offset += len;
+	return len;
+}
+
+uint32_t fs_write(int fd, const void *buf, uint32_t len) {
+	uint32_t i;
+	if(fd == 1 || fd == 2) {
+		for(i = 0; i < len; i ++) serial_printc(((const char *)buf)[i]);
+		return len;
+	}
+	if(fd == 0) return 0;
+	assert(fd >= 3 && fd < (int)(NR_FILES + 3));
+	assert(file_state[fd].opened);
+
+	const file_info *file = &file_table[fd - 3];
+	uint32_t remain = file->size - file_state[fd].offset;
+	if(len > remain) len = remain;
+	ide_write((uint8_t *)buf, file->disk_offset + file_state[fd].offset, len);
+	file_state[fd].offset += len;
+	return len;
+}
+
+int32_t fs_lseek(int fd, int32_t offset, int whence) {
+	assert(fd >= 3 && fd < (int)(NR_FILES + 3));
+	assert(file_state[fd].opened);
+	const file_info *file = &file_table[fd - 3];
+	int32_t next = 0;
+
+	switch(whence) {
+		case SEEK_SET: next = offset; break;
+		case SEEK_CUR: next = (int32_t)file_state[fd].offset + offset; break;
+		case SEEK_END: next = (int32_t)file->size + offset; break;
+		default: panic("invalid lseek whence: %d", whence);
+	}
+	assert(next >= 0 && next <= (int32_t)file->size);
+	file_state[fd].offset = next;
+	return next;
+}
+
+int fs_close(int fd) {
+	if(fd >= 0 && fd <= 2) return 0;
+	assert(fd >= 3 && fd < (int)(NR_FILES + 3));
+	assert(file_state[fd].opened);
+	file_state[fd].opened = false;
+	file_state[fd].offset = 0;
+	return 0;
+}

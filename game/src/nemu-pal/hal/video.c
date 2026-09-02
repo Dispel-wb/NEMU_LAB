@@ -24,24 +24,46 @@ void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect,
 		dstrect->h = h;
 	}
 
-	/* TODO: copy pixels from position (`sx', `sy') with size
-	 * `w' X `h' of `src' surface to position (`dx', `dy') of
-	 * `dst' surface.
-	 */
+	assert(src->format && dst->format);
+	assert(src->format->BitsPerPixel == dst->format->BitsPerPixel);
+	int bytes_per_pixel = src->format->BitsPerPixel >> 3;
+	assert(bytes_per_pixel > 0);
+	assert(sx >= 0 && sy >= 0 && dx >= 0 && dy >= 0);
+	if(src->w - sx < w) { w = src->w - sx; }
+	if(src->h - sy < h) { h = src->h - sy; }
+	if(w <= 0 || h <= 0) return;
 
-	assert(0);
+	/* WB的作业，可借鉴，请勿直接复制粘贴 */
+	int row;
+	for(row = 0; row < h; row ++) {
+		uint8_t *from = src->pixels + (sy + row) * src->pitch + sx * bytes_per_pixel;
+		uint8_t *to = dst->pixels + (dy + row) * dst->pitch + dx * bytes_per_pixel;
+		memmove(to, from, w * bytes_per_pixel);
+	}
+	if(dstrect != NULL) {
+		dstrect->w = w;
+		dstrect->h = h;
+	}
 }
 
 void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
 	assert(dst);
 	assert(color <= 0xff);
 
-	/* TODO: Fill the rectangle area described by `dstrect'
-	 * in surface `dst' with color `color'. If dstrect is
-	 * NULL, fill the whole surface.
-	 */
+	assert(dst->format && dst->format->BitsPerPixel == 8);
+	int x = (dstrect == NULL ? 0 : dstrect->x);
+	int y = (dstrect == NULL ? 0 : dstrect->y);
+	int w = (dstrect == NULL ? dst->w : dstrect->w);
+	int h = (dstrect == NULL ? dst->h : dstrect->h);
+	assert(x >= 0 && y >= 0);
+	if(dst->w - x < w) w = dst->w - x;
+	if(dst->h - y < h) h = dst->h - y;
+	if(w <= 0 || h <= 0) return;
 
-	assert(0);
+	int row;
+	for(row = 0; row < h; row ++) {
+		memset(dst->pixels + (y + row) * dst->pitch + x, color, w);
+	}
 }
 
 void SDL_SetPalette(SDL_Surface *s, int flags, SDL_Color *colors, 
@@ -69,8 +91,7 @@ void SDL_SetPalette(SDL_Surface *s, int flags, SDL_Color *colors,
 	memcpy(s->format->palette->colors, colors, sizeof(SDL_Color) * ncolors);
 
 	if(s->flags & SDL_HWSURFACE) {
-		/* TODO: Set the VGA palette by calling write_palette(). */
-		assert(0);
+		write_palette(colors, ncolors);
 	}
 }
 
@@ -126,14 +147,24 @@ SDL_Surface* SDL_CreateRGBSurface(uint32_t flags, int width, int height, int dep
 	assert(s);
 	s->format->palette = malloc(sizeof(SDL_Palette));
 	assert(s->format->palette);
+	s->format->palette->ncolors = 0;
 	s->format->palette->colors = NULL;
 
 	s->format->BitsPerPixel = depth;
+	s->format->BytesPerPixel = depth >> 3;
+	s->format->Rmask = Rmask;
+	s->format->Gmask = Gmask;
+	s->format->Bmask = Bmask;
+	s->format->Amask = Amask;
 
 	s->flags = flags;
 	s->w = width;
 	s->h = height;
 	s->pitch = (width * depth) >> 3;
+	s->clip_rect.x = 0;
+	s->clip_rect.y = 0;
+	s->clip_rect.w = width;
+	s->clip_rect.h = height;
 	s->pixels = (flags & SDL_HWSURFACE ? (void *)VMEM_ADDR : malloc(s->pitch * height));
 	assert(s->pixels);
 
@@ -165,4 +196,3 @@ void SDL_FreeSurface(SDL_Surface *s) {
 		free(s);
 	}
 }
-
